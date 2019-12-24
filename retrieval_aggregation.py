@@ -7,7 +7,7 @@ import re
 data_dir = "/data10/hcronk/geocarb/ditl_1/data/L2Ret/process"
 part_file_regex = re.compile(".*.prt$")
 sel_file_regex = re.compile("geocarb_(?P<product>[L2SEL](.*))_(?P<yyyymmdd>[0-9]{8})_(?P<resolution>(.*))_(?P<box>[boxncsa_0-9]{7,8})-(.*)_(?P<chunk>[chunk0-9]{8}).txt$")
-ret_file_regex = "geocarb_(?P<product>[L2FPRet](.*?))_(?P<sid>[0-9]{19})_(?P<yyyymmdd>[0-9]{8})_(?P<box>[boxncsa_0-9]{7,8})_(?P<chunk>[chunk0-9]{8}).h5$"
+ret_file_regex = re.compile("geocarb_(?P<product>[L2FPRet](.*?))_(?P<sid>[0-9]{19})_(?P<yyyymmdd>[0-9]{8})_(?P<box>[boxncsa_0-9]{7,8})_(?P<chunk>[chunk0-9]{8}).h5$")
 
 verbose=True
 
@@ -31,7 +31,7 @@ for gran_dir in iglob(os.path.join(data_dir, "*")):
     else:
         if verbose:
             print(ret_dir + " is ready to check against the sounding selection file.")
-        ret_file_sids = [re.search(ret_file_regex, f).groupdict()["sid"] for f in listdir]
+        ret_file_sids = [ret_file_regex.search(f).groupdict()["sid"] for f in listdir]
         sel_filename = [m.group() for f in os.listdir(gran_dir) for m in [sel_file_regex.match(f)] if m][0]
         with open(os.path.join(gran_dir, sel_filename)) as sf:
             sel_file_sids = sf.read().splitlines()
