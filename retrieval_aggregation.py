@@ -94,19 +94,6 @@ def aggregate(l1b_file):
                 attr_value = attr_dict.get(a)
                 write_dataset.attrs.create(a, data=attr_value)
     open_file.close()
-    sys.exit()
-    
-    for i, sid in enumerate(l1b_sid):
-        pass
-    
-    for rf in sorted(iglob(os.path.join(RET_DIR, "*L2FPRet*.h5"))):
-        rf_sid = ret_file_regex.search(rf).groupdict()["sid"]
-        
-    
-    
-    open_file = h5py.File(agg_file, "w")    
-    write_dataset = open_file.create_dataset("/SoundingGeometry/sounding_id", data = l1b_sid, dtype = l1b_sid.dtype, compression="gzip")
-    open_file.close()
 
 def get_hdf5_data(var, hdf5_file):
     """
