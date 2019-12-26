@@ -4,6 +4,7 @@ import argparse
 from glob import glob, iglob
 import re
 import h5py
+import numpy as np
 
 data_dir = "/data10/hcronk/geocarb/ditl_1/data/L2Ret/process"
 part_file_regex = re.compile(".*.prt$")
@@ -29,7 +30,6 @@ def read_hdf5_datafield_and_attrs(field, filename):
     
     return data, attr_dict
 
-
 def build_ds_list(name):
     global DS_NAMES
     DS_NAMES.append(name)
@@ -41,6 +41,8 @@ def aggregate(l1b_file):
     agg_file = re.sub("l1b_rx_intensity", "L2Ret", os.path.basename(l1b_file))
     print(agg_file)
     l1b_sid = get_hdf5_data("/SoundingGeometry/sounding_id", l1b_file)
+    print(l1b_sid)
+    #sys.exit()
     ret_files = sorted(iglob(os.path.join(RET_DIR, "*L2FPRet*.h5")))
     #Set up agg file
     open_file = h5py.File(ret_files[0], "r")
@@ -66,15 +68,36 @@ def aggregate(l1b_file):
                 write_dataset.attrs.create(a, data=attr_value)
         else:
             data, attr_dict = read_hdf5_datafield_and_attrs(ds, ret_files[0])
-            create_dataset = open_file.create_dataset(ds, l1b_sid.shape)
+            data_dtype = data.dtype
+            if data.dtype == object:
+                #byte/string issue with /RetrievalResults/aerosol_model...figure out if we actually need it
+                continue
+            if data.ndim == 1:
+                add_xdim = np.expand_dims(data, axis=0)
+                new_data_shape = list(add_xdim.shape)
+                new_data_shape[0] = len(l1b_sid)
+            else:
+                new_data_shape = list(data.shape)
+                new_data_shape[0] = len(l1b_sid)
+            all_data = np.full(tuple(new_data_shape), np.nan, dtype = data_dtype)
+            for i, sid in enumerate(l1b_sid):
+                try:
+                    ret_file = glob(os.path.join(RET_DIR, "*L2FPRet_" + str(sid[0]) + "*.h5"))[0]
+                except IndexError:
+                    continue
+                get_data = get_hdf5_data(ds, ret_file)
+                all_data[i] = get_data
+                        
+            write_dataset = open_file.create_dataset(ds, data = all_data, dtype = data_dtype, compression="gzip")
             for a in attr_dict.keys():
                 #print a
                 attr_value = attr_dict.get(a)
-                create_dataset.attrs.create(a, data=attr_value)
+                write_dataset.attrs.create(a, data=attr_value)
     open_file.close()
     sys.exit()
     
-
+    for i, sid in enumerate(l1b_sid):
+        pass
     
     for rf in sorted(iglob(os.path.join(RET_DIR, "*L2FPRet*.h5"))):
         rf_sid = ret_file_regex.search(rf).groupdict()["sid"]
