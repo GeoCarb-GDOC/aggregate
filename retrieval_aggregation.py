@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore")
+
 import os
 import sys
 import argparse
@@ -5,9 +8,11 @@ from glob import glob, iglob
 import re
 import h5py
 import numpy as np
+import shutil
 
-data_dir = "/data10/hcronk/geocarb/ditl_1/data/L2Ret/process"
-part_file_regex = re.compile(".*.prt$")
+data_dir = "/nobackup/hcronk/data"
+# the l2_fp code automatically adds a .generating tag to files as they are being written
+part_file_regex = re.compile(".*.generating$")
 sel_file_regex = re.compile("geocarb_(?P<product>[L2SEL]{5})_(?P<yyyymmdd>[0-9]{8})_(?P<resolution>(.*))_(?P<box>[boxncsa_0-9]{7,8})-(.*)_(?P<chunk>[chunk0-9]{8}).txt$")
 ret_file_regex = re.compile("geocarb_(?P<product>[L2FPRet]{7})_(?P<sid>[0-9]{19})_(?P<yyyymmdd>[0-9]{8})_(?P<box>[boxncsa_0-9]{7,8})_(?P<chunk>[chunk0-9]{8}).h5$")
 l1b_file_regex = re.compile("geocarb_(?P<product>[l1b]{3})_rx_intensity_(?P<yyyymmdd>[0-9]{8})_(?P<resolution>(.*))_(?P<box>[boxncsa_0-9]{7,8})-(.*)_(?P<chunk>[chunk0-9]{8}).h5$")
@@ -113,13 +118,14 @@ def aggregate(l1b_file):
                 attr_value = attr_dict.get(a)
                 write_dataset.attrs.create(a, data=attr_value)
     open_file.close()
+    return True
 
 if __name__ == "__main__":
     
     global SEL_FILE_SIDS
     global RET_DIR
 
-    for gran_dir in iglob(os.path.join(data_dir, "*")):
+    for gran_dir in iglob(os.path.join(data_dir, "process", "*")):
         if verbose:
             print("Checking " + gran_dir)
         RET_DIR = os.path.join(gran_dir, "l2fp_retrievals")
@@ -151,4 +157,13 @@ if __name__ == "__main__":
                     print(RET_DIR + " has all the SIDs the sounding selection file. Time to aggregate.")
                 l1b_filename = [m.group() for f in os.listdir(gran_dir) for m in [l1b_file_regex.match(f)] if m][0]
                 agg = aggregate(os.path.join(gran_dir, l1b_filename))
-        
+                if agg:
+                    if verbose:
+                        print("Aggregation successful for " + os.path.basename(gran_dir))
+                        print("Copying " +  gran_dir + " to  " + re.sub("process", "complete", gran_dir))
+                    cmd = "shiftc -r " + gran_dir + " " + re.sub("process", "complete", gran_dir)
+                    #print(cmd)
+                    os.system(cmd)
+                    if os.path.isdir(re.sub("process", "complete", gran_dir)):
+                        shutil.rmtree(gran_dir)
+ 
