@@ -118,7 +118,6 @@ if __name__ == "__main__":
     
     global SEL_FILE_SIDS
     global RET_DIR
-    global RET_FILE_SIDS
 
     for gran_dir in iglob(os.path.join(data_dir, "*")):
         if verbose:
@@ -140,11 +139,11 @@ if __name__ == "__main__":
         else:
             if verbose:
                 print(RET_DIR + " is ready to check against the sounding selection file.")
-            RET_FILE_SIDS = sorted([ret_file_regex.search(f).groupdict()["sid"] for f in listdir])
+            ret_file_sids = sorted([ret_file_regex.search(f).groupdict()["sid"] for f in listdir])
             sel_filename = [m.group() for f in os.listdir(gran_dir) for m in [sel_file_regex.match(f)] if m][0]
             with open(os.path.join(gran_dir, sel_filename)) as sf:
                 SEL_FILE_SIDS = sf.read().splitlines()
-            if not all(sid in RET_FILE_SIDS for sid in SEL_FILE_SIDS):
+            if not all(sid in ret_file_sids for sid in SEL_FILE_SIDS):
                 if verbose:
                     print(RET_DIR + " does not have all the SIDs the sounding selection file.")
             else:
