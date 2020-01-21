@@ -11,10 +11,12 @@ import numpy as np
 import shutil
 
 data_dir = "/nobackup/hcronk/data"
+OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
 # the l2_fp code automatically adds a .generating tag to files as they are being written
 part_file_regex = re.compile(".*.generating$")
+error_file_regex = re.compile(".*.error$")
 sel_file_regex = re.compile("geocarb_(?P<product>[L2SEL]{5})_(?P<yyyymmdd>[0-9]{8})_(?P<resolution>(.*))_(?P<box>[boxncsa_0-9]{7,8})-(.*)_(?P<chunk>[chunk0-9]{8}).txt$")
-ret_file_regex = re.compile("geocarb_(?P<product>[L2FPRet]{7})_(?P<sid>[0-9]{19})_(?P<yyyymmdd>[0-9]{8})_(?P<box>[boxncsa_0-9]{7,8})_(?P<chunk>[chunk0-9]{8}).h5$")
+ret_file_regex = re.compile("geocarb_(?P<product>[L2FPRet]{7})_(?P<sid>[0-9]{19})_(?P<yyyymmdd>[0-9]{8})_(?P<box>[boxncsa_0-9]{7,8})_(?P<chunk>[chunk0-9]{8}).h5")
 l1b_file_regex = re.compile("geocarb_(?P<product>[l1b]{3})_rx_intensity_(?P<yyyymmdd>[0-9]{8})_(?P<resolution>(.*))_(?P<box>[boxncsa_0-9]{7,8})-(.*)_(?P<chunk>[chunk0-9]{8}).h5$")
 
 verbose=True
@@ -60,7 +62,7 @@ def aggregate(l1b_file):
     
     global DS_NAMES
     
-    agg_file = re.sub("l1b_rx_intensity", "L2Ret", os.path.basename(l1b_file))
+    agg_file = os.path.join(OUTPUT_DIR, re.sub("l1b_rx_intensity", "L2Ret", os.path.basename(l1b_file)))
     l1b_sid, attr_dict = read_hdf5_datafield_and_attrs("/SoundingGeometry/sounding_id", l1b_file)
     sid_bool = np.isin(l1b_sid, np.array(SEL_FILE_SIDS).astype("int64"))
     relevant_sids = np.ma.masked_array(l1b_sid, ~sid_bool)
@@ -124,8 +126,18 @@ if __name__ == "__main__":
     
     global SEL_FILE_SIDS
     global RET_DIR
-
-    for gran_dir in iglob(os.path.join(data_dir, "process", "*")):
+    
+    parser = argparse.ArgumentParser(description="GeoCarb L2FP retrieval aggregation", prefix_chars="-")
+    parser.add_argument(dest="gran_to_process", help="Full path to granule directory", default="")
+    args = parser.parse_args()
+    
+    #gran_to_process = args.gran
+    if args.gran_to_process:
+        all_gran_dirs = [args.gran_to_process]
+    else:
+        all_gran_dirs = iglob(os.path.join(data_dir, "process", "*"))
+        
+    for gran_dir in all_gran_dirs:
         if verbose:
             print("Checking " + gran_dir)
         RET_DIR = os.path.join(gran_dir, "l2fp_retrievals")
@@ -145,7 +157,20 @@ if __name__ == "__main__":
         else:
             if verbose:
                 print(RET_DIR + " is ready to check against the sounding selection file.")
-            ret_file_sids = sorted([ret_file_regex.search(f).groupdict()["sid"] for f in listdir])
+            try:
+                ret_file_sids = sorted([ret_file_regex.search(f).groupdict()["sid"] for f in listdir])
+            except AttributeError as ae:
+                print("Exception with retrieval file SID extraction from filenames")
+                print("RET_DIR", RET_DIR)
+                print("Regex:",ret_file_regex)
+                for f in listdir:
+                    print(f)
+                    try:
+                       sid = ret_file_regex.search(f).groupdict()["sid"]
+                    except:
+                       print("Didn't work")
+                       continue
+                continue
             sel_filename = [m.group() for f in os.listdir(gran_dir) for m in [sel_file_regex.match(f)] if m][0]
             with open(os.path.join(gran_dir, sel_filename)) as sf:
                 SEL_FILE_SIDS = sf.read().splitlines()
@@ -161,9 +186,10 @@ if __name__ == "__main__":
                     if verbose:
                         print("Aggregation successful for " + os.path.basename(gran_dir))
                         print("Copying " +  gran_dir + " to  " + re.sub("process", "complete", gran_dir))
-                    cmd = "shiftc -r " + gran_dir + " " + re.sub("process", "complete", gran_dir)
+                    #cmd = "shiftc -r " + gran_dir + " " + re.sub("process", "complete", gran_dir)
                     #print(cmd)
-                    os.system(cmd)
-                    if os.path.isdir(re.sub("process", "complete", gran_dir)):
-                        shutil.rmtree(gran_dir)
+                    #os.system(cmd)
+                    move_to_complete = shutil.move(gran_dir, re.sub("process", "complete", gran_dir))
+                    #if os.path.isdir(re.sub("process", "complete", gran_dir)):
+                    #    shutil.rmtree(gran_dir)
  
