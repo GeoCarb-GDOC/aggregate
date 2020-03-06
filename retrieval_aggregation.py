@@ -10,10 +10,10 @@ import h5py
 import numpy as np
 import shutil
 
-#data_dir = "/nobackup/hcronk/data"
-data_dir = "/data10/hcronk/geocarb/ditl_1/data/L2Ret/testing"
-#OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
-OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
+data_dir = "/nobackup/hcronk/data"
+#data_dir = "/data10/hcronk/geocarb/ditl_1/data/L2Ret/testing"
+OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
+#OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
 # the l2_fp code automatically adds a .generating tag to files as they are being written
 part_file_regex = re.compile(".*.generating$")
 error_file_regex = re.compile(".*.error$")
@@ -64,10 +64,11 @@ def build_ds_list(name):
 def aggregate(l1b_file):
     
     global DS_NAMES
+    global AGG_FILE
     all_dat_dict = {}
     all_attrs_dict = {}
     
-    agg_file = os.path.join(OUTPUT_DIR, re.sub("l1b_rx_intensity", "L2Ret", os.path.basename(l1b_file)))
+    AGG_FILE = os.path.join(OUTPUT_DIR, re.sub("l1b_rx_intensity", "L2Ret", os.path.basename(l1b_file)))
     l1b_sid, attr_dict = read_hdf5_datafield_and_attrs("/SoundingGeometry/sounding_id", l1b_file)
     sid_bool = np.isin(l1b_sid, np.array(SEL_FILE_SIDS).astype("int64"))
     relevant_sids = np.ma.masked_array(l1b_sid, ~sid_bool)
@@ -90,7 +91,7 @@ def aggregate(l1b_file):
                                                                "RetrievedStateVector/state_vector_names" in ds]
     
     #Write metadata fields into agg file
-    open_out_file = h5py.File(agg_file + ".generating", "w")
+    open_out_file = h5py.File(AGG_FILE + ".generating", "w")
     try:
         open_first_file = h5py.File(ret_files[0], 'r')
     except Exception as e:
@@ -288,14 +289,15 @@ if __name__ == "__main__":
                     print(RET_DIR + " has all the SIDs the sounding selection file. Time to aggregate.")
                 l1b_filename = [m.group() for f in os.listdir(gran_dir) for m in [l1b_file_regex.match(f)] if m][0]
                 agg = aggregate(os.path.join(gran_dir, l1b_filename))
-#                if agg:
-#                    if verbose:
-#                        print("Aggregation successful for " + os.path.basename(gran_dir))
-#                        print("Copying " +  gran_dir + " to  " + re.sub("process", "complete", gran_dir))
-#                    #cmd = "shiftc -r " + gran_dir + " " + re.sub("process", "complete", gran_dir)
-#                    #print(cmd)
-#                    #os.system(cmd)
-#                    move_to_complete = shutil.move(gran_dir, re.sub("process", "complete", gran_dir))
-#                    #if os.path.isdir(re.sub("process", "complete", gran_dir)):
-#                    #    shutil.rmtree(gran_dir)
+                if agg:
+                    get_rid_of_partfile = shutil.move(AGG_FILE + ".generating", AGG_FILE)
+                    if verbose:
+                        print("Aggregation successful for " + os.path.basename(gran_dir))
+                        print("Copying " +  gran_dir + " to  " + re.sub("process", "complete", gran_dir))
+                    #cmd = "shiftc -r " + gran_dir + " " + re.sub("process", "complete", gran_dir)
+                    #print(cmd)
+                    #os.system(cmd)
+                    move_to_complete = shutil.move(gran_dir, re.sub("process", "complete", gran_dir))
+                    #if os.path.isdir(re.sub("process", "complete", gran_dir)):
+                    #    shutil.rmtree(gran_dir)
  
