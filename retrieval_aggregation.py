@@ -10,10 +10,10 @@ import h5py
 import numpy as np
 import shutil
 
-data_dir = "/nobackup/hcronk/data"
-#data_dir = "/data10/hcronk/geocarb/ditl_1/data/L2Ret/testing"
-OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
-#OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
+#data_dir = "/nobackup/hcronk/data"
+data_dir = "/data10/hcronk/geocarb/ditl_1/testing"
+#OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
+OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
 # the l2_fp code automatically adds a .generating tag to files as they are being written
 part_file_regex = re.compile(".*.generating$")
 error_file_regex = re.compile(".*.error$")
@@ -78,17 +78,26 @@ def aggregate(l1b_file):
     #Set up agg file
     open_file = h5py.File(ret_files[0], "r")
     DS_NAMES = []
+    granule_level_ds_names = []
     open_file.visit(build_ds_list)
     open_file.close()
     get_rid_of_groups = [DS_NAMES.remove(ds) for ds in DS_NAMES[:] if "/" not in ds]
     #Skip Dimensions/, Shapes/, and /RetrievalResults/aerosol_model for now; handle Metadata once separately
     metadata_ds_names = [ds for ds in DS_NAMES[:] if "Metadata" in ds]
+    one_per_gran_retrieval_ds_names = ["RetrievalResults/aerosol_model", "RetrievedStateVector/state_vector_names"]
+    shapes_ds_names = [os.path.join(ds, "") for ds in DS_NAMES[:] if "Shapes" in ds]
+    dimensions_ds_names = [os.path.join(ds, "") for ds in DS_NAMES[:] if "Dimensions" in ds]
+    granule_level_ds_names = metadata_ds_names + one_per_gran_retrieval_ds_names + shapes_ds_names + dimensions_ds_names
+    #get_rid_of_extras = [DS_NAMES.remove(ds) for ds in DS_NAMES[:] if ds in granule_level_ds_names]
+    
     get_rid_of_extras = [DS_NAMES.remove(ds) for ds in DS_NAMES[:] if "Dimensions/" in ds or 
                                                                "Shapes/" in ds or 
                                                                "Metadata/" in ds or 
                                                                "RetrievalResults/aerosol_model" in ds or
-                                                               "RetrievalResults/surface_type" in ds or
                                                                "RetrievedStateVector/state_vector_names" in ds]
+#                                                               "RetrievalResults/aerosol_model" in ds or
+#                                                               "RetrievalResults/surface_type" in ds or
+#                                                               "RetrievedStateVector/state_vector_names" in ds]
     
     #Write metadata fields into agg file
     open_out_file = h5py.File(AGG_FILE + ".generating", "w")
@@ -98,16 +107,18 @@ def aggregate(l1b_file):
         print("Problem opening " + ret_files[0])
         print("Error:", e)
         sys.exit()
-    for ds in metadata_ds_names:
+    for ds in granule_level_ds_names:
         #print(ds)
         try:
             data_obj = open_first_file[ds]
         except Exception as e:
-                print("Problem attaching to " + ds)
-                print("Error:", e)
-                sys.exit()
+            print("Problem attaching to " + ds)
+            print("Error:", e)
+            sys.exit()
         try:
             data = data_obj[:]
+        except AttributeError:
+            data = data_obj
         except Exception as e:
                 print("Problem extracting data from " + ds)
                 print("Error:", e)
@@ -117,9 +128,18 @@ def aggregate(l1b_file):
             for k, v in data_obj.attrs.items():
                 attr_dict[str(k)] = v[0]
         except Exception as e:
-                print("Problem extracting attributes from " + ds)
-                print("Error:", e)
-                sys.exit()
+            print("Problem extracting attributes from " + ds)
+            print("Error:", e)
+            sys.exit()
+                
+        if ds[-1] == "/":
+            write_dataset = open_out_file.create_group(ds)
+        else:
+            write_dataset = open_out_file.create_dataset(ds, data=data)
+        for attr_name, attr_value in attr_dict.items():
+            if verbose:
+                print("Writing " + attr_name)
+            write_dataset.attrs.create(attr_name, data=attr_value)
     
     for ds in DS_NAMES:
         #print(ds)
@@ -145,9 +165,7 @@ def aggregate(l1b_file):
                 sys.exit()
         
         data_dtype = data.dtype
-#        if data.dtype == object:
-#            #byte/string issue with /RetrievalResults/aerosol_model...figure out if we actually need it
-#            continue
+
         if data.ndim == 1:
             add_xdim = np.expand_dims(data, axis=0)
             new_data_shape = list(add_xdim.shape)
@@ -155,11 +173,15 @@ def aggregate(l1b_file):
         else:
             new_data_shape = list(data.shape)
             new_data_shape[0] = len(l1b_sid)
-        #print(new_data_shape)
-        all_dat_dict[ds] = np.full(tuple(new_data_shape), np.nan, dtype = data_dtype)
+        
+        if ds == "RetrievalResults/surface_type":
+            #Fixed length string, may not be the size of the element in the first file
+            all_dat_dict[ds] = np.full(len(l1b_sid), "", dtype = "S19")
+        else:
+            all_dat_dict[ds] = np.empty(tuple(new_data_shape), dtype = data_dtype)
         all_attrs_dict[ds] = attr_dict
     open_first_file.close() 
-       
+
     for sid in relevant_sids.compressed():
         #print(sid)
         ret_file = glob(os.path.join(RET_DIR, "*L2FPRet_" + str(sid) + "*.h5*"))[0]
@@ -167,65 +189,22 @@ def aggregate(l1b_file):
         open_ret_file = h5py.File(ret_file, 'r')
         for ret_ds in DS_NAMES:
             #print(ret_ds)
-            #print(all_dat_dict[ret_ds].shape)
-            all_dat_dict[ret_ds][xidx] = open_ret_file[ret_ds][:]
-        open_ret_file.close()
-    
+            if ret_ds == "RetrievalResults/surface_type":
+                all_dat_dict[ret_ds][xidx] = open_ret_file[ret_ds][:][0].decode()
+            else:
+                all_dat_dict[ret_ds][xidx] = open_ret_file[ret_ds][:]
+
     for ds_name, dat in all_dat_dict.items():
-        print("Writing " + ds_name)
-        write_dataset = open_out_file.create_dataset(ds_name, data=dat, dtype = data_dtype, compression="gzip")
+        if verbose:
+            print("Writing " + ds_name)
+        write_dataset = open_out_file.create_dataset(ds_name, data=dat, dtype=dat.dtype)
         for attr_name, attr_value in all_attrs_dict[ds_name].items():
-            print("Writing " + attr_name)
+            if verbose:
+                print("Writing " + attr_name)
+                #print(attr_value)
             write_dataset.attrs.create(attr_name, data=attr_value)
-    #open_first_file.close()
     open_out_file.close()
-    #sys.exit()
-    
-#    #write other datasets into agg file
-#    for ds in DS_NAMES:
-#        print(ds)
-#        if "Dimensions/" in ds or "Shapes/" in ds:
-#            #Figure out at end?
-#            #Eventually we may just want to put these fields in ourselves when we package the L2Dia/L2Std
-#            print("Skipping for now")
-#            continue
-#        elif "Metadata" in ds: 
-#            #go ahead and write this info in, it should be the same for all retrievals?
-#            #Eventually we may just want to put these fields in ourselves when we package the L2Dia/L2Std
-#            data, attr_dict = read_hdf5_datafield_and_attrs(ds, ret_files[0])
-#            write_dataset = open_file.create_dataset(ds, data = data, dtype = data.dtype, compression="gzip")
-#            for a in attr_dict.keys():
-#                #print a
-#                attr_value = attr_dict.get(a)
-#                write_dataset.attrs.create(a, data=attr_value)
-#        else:
-#        data, attr_dict = read_hdf5_datafield_and_attrs(ds, ret_files[0])
-#        data_dtype = data.dtype
-#        if data.dtype == object:
-#            #byte/string issue with /RetrievalResults/aerosol_model...figure out if we actually need it
-#            continue
-#        if data.ndim == 1:
-#            add_xdim = np.expand_dims(data, axis=0)
-#            new_data_shape = list(add_xdim.shape)
-#            new_data_shape[0] = len(l1b_sid)
-#        else:
-#            new_data_shape = list(data.shape)
-#            new_data_shape[0] = len(l1b_sid)
-#        all_data = np.full(tuple(new_data_shape), np.nan, dtype = data_dtype)
-#
-#        for sid in relevant_sids.compressed():
-#            #print(sid)
-#            ret_file = glob(os.path.join(RET_DIR, "*L2FPRet_" + str(sid) + "*.h5*"))[0]
-#            xidx, yidx = np.where(l1b_sid == sid)
-#            data, attr_dict = read_hdf5_datafield_and_attrs(ds, ret_file)
-#            all_data[xidx] = data
-#
-#        write_dataset = open_file.create_dataset(ds, data = all_data, dtype = data_dtype, compression="gzip")
-#        for a in attr_dict.keys():
-#            #print a
-#            attr_value = attr_dict.get(a)
-#            write_dataset.attrs.create(a, data=attr_value)
-#    open_file.close()
+
     return True
 
 if __name__ == "__main__":
@@ -234,18 +213,29 @@ if __name__ == "__main__":
     global RET_DIR
     
     parser = argparse.ArgumentParser(description="GeoCarb L2FP retrieval aggregation", prefix_chars="-")
-    parser.add_argument(dest="gran_to_process", help="Full path to granule directory", default="")
+    parser.add_argument(dest="gran_to_process", nargs="?", help="Full path to granule directory", default="")
+    parser.add_argument("-v", "--verbose", help="Prints some basic information during code execution", action="store_true")
     args = parser.parse_args()
+    
+    verbose = args.verbose
     
     #gran_to_process = args.gran
     if args.gran_to_process:
         all_gran_dirs = [args.gran_to_process]
     else:
-        all_gran_dirs = iglob(os.path.join(data_dir, "process", "*"))
-        
+        if not glob(os.path.join(data_dir, "process", "*")):
+            print("No data directories at " + os.path.join(data_dir, "process"))
+            print("Exiting")
+            sys.exit()
+        else:
+            all_gran_dirs = iglob(os.path.join(data_dir, "process", "*"))
+    
     for gran_dir in all_gran_dirs:
         if verbose:
             print("Checking " + gran_dir)
+        if not os.path.exists(gran_dir):
+            print(gran_dir + " DNE. Moving on.")
+            continue
         RET_DIR = os.path.join(gran_dir, "l2fp_retrievals")
         if not glob(RET_DIR):
             if verbose:
@@ -287,7 +277,12 @@ if __name__ == "__main__":
             else:
                 if verbose:
                     print(RET_DIR + " has all the SIDs the sounding selection file. Time to aggregate.")
-                l1b_filename = [m.group() for f in os.listdir(gran_dir) for m in [l1b_file_regex.match(f)] if m][0]
+                try:
+                    l1b_filename = [m.group() for f in os.listdir(gran_dir) for m in [l1b_file_regex.match(f)] if m][0]
+                except IndexError as e:
+                    print("No L1b file in " + gran_dir)
+                    print("Moving on")
+                    continue
                 agg = aggregate(os.path.join(gran_dir, l1b_filename))
                 if agg:
                     get_rid_of_partfile = shutil.move(AGG_FILE + ".generating", AGG_FILE)
@@ -297,7 +292,7 @@ if __name__ == "__main__":
                     #cmd = "shiftc -r " + gran_dir + " " + re.sub("process", "complete", gran_dir)
                     #print(cmd)
                     #os.system(cmd)
-                    move_to_complete = shutil.move(gran_dir, re.sub("process", "complete", gran_dir))
+                    #move_to_complete = shutil.move(gran_dir, re.sub("process", "complete", gran_dir))
                     #if os.path.isdir(re.sub("process", "complete", gran_dir)):
                     #    shutil.rmtree(gran_dir)
  
