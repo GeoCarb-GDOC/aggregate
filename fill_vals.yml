@@ -1,0 +1,11 @@
+# These values came from 
+# RtRetrievalFramework/lib/RegisterOutput/fill_value.h
+# Use of these will eventually be replaced by 
+# reading fill values from the L1b file
+#
+float32: -999999.0
+float64: -999999.0
+int8: -127
+int16: -32767
+int32: -2147483647
+int64: -9223372036854775807

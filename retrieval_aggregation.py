@@ -9,11 +9,13 @@ import re
 import h5py
 import numpy as np
 import shutil
+import yaml
 
 #data_dir = "/nobackup/hcronk/data"
 data_dir = "/data10/hcronk/geocarb/ditl_1/testing"
 #OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
 OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
+FILL_VAL_FILE = "/home/hcronk/geocarb/ditl_1/aggregation/fill_vals.yml"
 # the l2_fp code automatically adds a .generating tag to files as they are being written
 part_file_regex = re.compile(".*.generating$")
 error_file_regex = re.compile(".*.error$")
@@ -60,6 +62,13 @@ def read_hdf5_datafield_and_attrs(field, filename):
 def build_ds_list(name):
     global DS_NAMES
     DS_NAMES.append(name)
+
+def read_fill_vals():
+    global FILL_VAL_DICT
+    
+    with open(FILL_VAL_FILE, "r") as f:
+        FILL_VAL_DICT = yaml.load(f)
+
 
 def aggregate(l1b_file):
     
@@ -178,7 +187,7 @@ def aggregate(l1b_file):
             #Fixed length string, may not be the size of the element in the first file
             all_dat_dict[ds] = np.full(len(l1b_sid), "", dtype = "S19")
         else:
-            all_dat_dict[ds] = np.empty(tuple(new_data_shape), dtype = data_dtype)
+            all_dat_dict[ds] = np.full(tuple(new_data_shape), FILL_VAL_DICT[str(data_dtype)], dtype = data_dtype)
         all_attrs_dict[ds] = attr_dict
     open_first_file.close() 
 
@@ -208,7 +217,7 @@ def aggregate(l1b_file):
     return True
 
 if __name__ == "__main__":
-    
+     
     global SEL_FILE_SIDS
     global RET_DIR
     
@@ -229,6 +238,8 @@ if __name__ == "__main__":
             sys.exit()
         else:
             all_gran_dirs = iglob(os.path.join(data_dir, "process", "*"))
+    
+    read_fill_vals()
     
     for gran_dir in all_gran_dirs:
         if verbose:
