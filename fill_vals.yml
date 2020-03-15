@@ -3,11 +3,12 @@
 # Use of these will eventually be replaced by 
 # reading fill values from the L1b file
 #
-float: -999999.0F
-double: -999999.0
-signed char: -127
-short: -32767
-int: -2147483647
+float32: -999999.0
+float64: -999999.0
+int8: -127
+int16: -32767
+int32: -2147483647
+int64: -9223372036854775807
 long long: -9223372036854775807LL
 unsigned char: 254
 unsigned short: 65534      
