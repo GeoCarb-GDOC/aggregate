@@ -9,8 +9,3 @@ int8: -127
 int16: -32767
 int32: -2147483647
 int64: -9223372036854775807
-long long: -9223372036854775807LL
-unsigned char: 254
-unsigned short: 65534      
-unsigned int: 4294967294U
-unsigned long long: 18446744073709551614ULL
