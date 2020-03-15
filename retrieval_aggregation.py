@@ -187,7 +187,7 @@ def aggregate(l1b_file):
             #Fixed length string, may not be the size of the element in the first file
             all_dat_dict[ds] = np.full(len(l1b_sid), "", dtype = "S19")
         else:
-            all_dat_dict[ds] = np.empty(tuple(new_data_shape), dtype = data_dtype)
+            all_dat_dict[ds] = np.full(tuple(new_data_shape), FILL_VAL_DICT[str(data_dtype)], dtype = data_dtype)
         all_attrs_dict[ds] = attr_dict
     open_first_file.close() 
 
@@ -217,11 +217,7 @@ def aggregate(l1b_file):
     return True
 
 if __name__ == "__main__":
-    
-    read_fill_vals()
-    print(FILL_VAL_DICT)
-    sys.exit()
-    
+     
     global SEL_FILE_SIDS
     global RET_DIR
     
@@ -242,6 +238,8 @@ if __name__ == "__main__":
             sys.exit()
         else:
             all_gran_dirs = iglob(os.path.join(data_dir, "process", "*"))
+    
+    read_fill_vals()
     
     for gran_dir in all_gran_dirs:
         if verbose:
