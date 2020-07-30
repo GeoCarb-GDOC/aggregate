@@ -11,11 +11,12 @@ import numpy as np
 import shutil
 import yaml
 
-#data_dir = "/nobackup/hcronk/data"
-data_dir = "/data10/hcronk/geocarb/ditl_1/testing"
-#OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
-OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
-FILL_VAL_FILE = "/home/hcronk/geocarb/ditl_1/aggregation/fill_vals.yml"
+data_dir = "/nobackup/hcronk/data"
+#data_dir = "/data10/hcronk/geocarb/ditl_1/testing"
+OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
+#OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
+#FILL_VAL_FILE = "/home/hcronk/geocarb/ditl_1/aggregation/fill_vals.yml"
+FILL_VAL_FILE = "fill_vals.yml"
 # the l2_fp code automatically adds a .generating tag to files as they are being written
 part_file_regex = re.compile(".*.generating$")
 error_file_regex = re.compile(".*.error$")
