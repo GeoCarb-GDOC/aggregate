@@ -2,7 +2,7 @@
 
 # Load the compiler used to compile
 source ~/.cshrc
-module load python3/3.7.0
+source ~/agg_env/bin/activate.csh
 
 ### Get Variables ###
 echo $argv[1]
