@@ -1,0 +1,10 @@
+Bootstrap:docker
+From: continuumio/miniconda3
+
+%post
+
+    /opt/conda/bin/conda install -y -c anaconda  pyyaml
+    /opt/conda/bin/conda install -y -c conda-forge h5py netcdf4
+
+%files
+    ./retrieval_aggregation.py /agg_app/retrieval_aggregation.py
