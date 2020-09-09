@@ -56,10 +56,10 @@ def build_ds_list(name):
     global DS_NAMES
     DS_NAMES.append(name)
 
-def read_fill_vals():
+def read_fill_vals(fill_val_file):
     global FILL_VAL_DICT
     
-    with open(FILL_VAL_FILE, "r") as f:
+    with open(fill_val_file, "r") as f:
         FILL_VAL_DICT = yaml.load(f)
         
 def read_config_file(config_file):
@@ -231,21 +231,19 @@ if __name__ == "__main__":
     config_file = args.config
     
     config_dict = read_config_file(config_file)
-    print(config_dict)
-    sys.exit()
     
     #gran_to_process = args.gran
     if args.gran_to_process:
         all_gran_dirs = [args.gran_to_process]
     else:        
-        if not glob(os.path.join(data_dir, "*")):
-            print("No data directories at " + data_dir)
+        if not glob(os.path.join(config_dict["data_dir"], "*")):
+            print("No data directories at " + config_dict["data_dir"])
             print("Exiting")
             sys.exit()
         else:
-            all_gran_dirs = iglob(os.path.join(data_dir, "*"))
+            all_gran_dirs = iglob(os.path.join(config_dict["data_dir"], "*"))
     
-    read_fill_vals()
+    read_fill_vals(config_dict["fill_val_file"])
     
     for gran_dir in all_gran_dirs:
         if verbose:
