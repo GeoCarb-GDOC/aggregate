@@ -11,20 +11,12 @@ import numpy as np
 import shutil
 import yaml
 
-#data_dir = "/nobackup/hcronk/data"
-data_dir = "/data10/hcronk/geocarb/ditl_1/testing"
-#OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
-OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
-#FILL_VAL_FILE = "/home/hcronk/geocarb/ditl_1/aggregation/fill_vals.yml"
-FILL_VAL_FILE = "fill_vals.yml"
 # the l2_fp code automatically adds a .generating tag to files as they are being written
 part_file_regex = re.compile(".*.generating$")
 error_file_regex = re.compile(".*.error$")
 sel_file_regex = re.compile("geocarb_(?P<product>[L2SEL]{5})_(?P<yyyymmdd>[0-9]{8})_(?P<resolution>(.*))_(?P<box>[boxncsa_0-9]{7,8})-(.*)_(?P<chunk>[chunk0-9]{8}).txt$")
 ret_file_regex = re.compile("geocarb_(?P<product>[L2FPRet]{7})_(?P<sid>[0-9]{19})_(?P<yyyymmdd>[0-9]{8})_(?P<box>[boxncsa_0-9]{7,8})_(?P<chunk>[chunk0-9]{8}).h5")
 l1b_file_regex = re.compile("geocarb_(?P<product>[l1b]{3})_rx_intensity_(?P<yyyymmdd>[0-9]{8})_(?P<resolution>(.*))_(?P<box>[boxncsa_0-9]{7,8})-(.*)_(?P<chunk>[chunk0-9]{8}).h5$")
-
-verbose=True
 
 def read_hdf5_datafield_and_attrs(field, filename):
     """
@@ -69,7 +61,11 @@ def read_fill_vals():
     
     with open(FILL_VAL_FILE, "r") as f:
         FILL_VAL_DICT = yaml.load(f)
+        
+def read_config_file(config_file):
 
+    with open(config_file, "r") as f:
+        return yaml.load(f)
 
 def aggregate(l1b_file):
     
@@ -227,21 +223,27 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="GeoCarb L2FP retrieval aggregation", prefix_chars="-")
     parser.add_argument(dest="gran_to_process", nargs="?", help="Full path to granule directory", default="")
+    parser.add_argument("-c", "--config", help="Configuration file (yaml) containing IO and fill value paths", required=True)
     parser.add_argument("-v", "--verbose", help="Prints some basic information during code execution", action="store_true")
     args = parser.parse_args()
     
     verbose = args.verbose
+    config_file = args.config
+    
+    config_dict = read_config_file(config_file)
+    print(config_dict)
+    sys.exit()
     
     #gran_to_process = args.gran
     if args.gran_to_process:
         all_gran_dirs = [args.gran_to_process]
-    else:
-        if not glob(os.path.join(data_dir, "process", "*")):
-            print("No data directories at " + os.path.join(data_dir, "process"))
+    else:        
+        if not glob(os.path.join(data_dir, "*")):
+            print("No data directories at " + data_dir)
             print("Exiting")
             sys.exit()
         else:
-            all_gran_dirs = iglob(os.path.join(data_dir, "process", "*"))
+            all_gran_dirs = iglob(os.path.join(data_dir, "*"))
     
     read_fill_vals()
     
