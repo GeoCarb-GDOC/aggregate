@@ -63,9 +63,10 @@ def read_fill_vals(fill_val_file):
         FILL_VAL_DICT = yaml.load(f)
         
 def read_config_file(config_file):
+    global CONFIG_DICT
 
     with open(config_file, "r") as f:
-        return yaml.load(f)
+        CONFIG_DICT = yaml.load(f)
 
 def aggregate(l1b_file):
     
@@ -74,7 +75,7 @@ def aggregate(l1b_file):
     all_dat_dict = {}
     all_attrs_dict = {}
     
-    AGG_FILE = os.path.join(OUTPUT_DIR, re.sub("l1b_rx_intensity", "L2Ret", os.path.basename(l1b_file)))
+    AGG_FILE = os.path.join(CONFIG_DICT["output_dir"], re.sub("l1b_rx_intensity", "L2Ret", os.path.basename(l1b_file)))
     l1b_sid, attr_dict = read_hdf5_datafield_and_attrs("/SoundingGeometry/sounding_id", l1b_file)
     sid_bool = np.isin(l1b_sid, np.array(SEL_FILE_SIDS).astype("int64"))
     relevant_sids = np.ma.masked_array(l1b_sid, ~sid_bool)
@@ -230,20 +231,20 @@ if __name__ == "__main__":
     verbose = args.verbose
     config_file = args.config
     
-    config_dict = read_config_file(config_file)
+    read_config_file(config_file)
     
     #gran_to_process = args.gran
     if args.gran_to_process:
         all_gran_dirs = [args.gran_to_process]
     else:        
-        if not glob(os.path.join(config_dict["data_dir"], "*")):
-            print("No data directories at " + config_dict["data_dir"])
+        if not glob(os.path.join(CONFIG_DICT["data_dir"], "*")):
+            print("No data directories at " + CONFIG_DICT["data_dir"])
             print("Exiting")
             sys.exit()
         else:
-            all_gran_dirs = iglob(os.path.join(config_dict["data_dir"], "*"))
+            all_gran_dirs = iglob(os.path.join(CONFIG_DICT["data_dir"], "*"))
     
-    read_fill_vals(config_dict["fill_val_file"])
+    read_fill_vals(CONFIG_DICT["fill_val_file"])
     
     for gran_dir in all_gran_dirs:
         if verbose:
