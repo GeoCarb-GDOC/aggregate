@@ -1,0 +1,4 @@
+data_dir: {{ dir_path_to_files_for_aggregation }}
+output_dir: {{ dir_path_for_aggregated_files }}
+fill_val_file: {{ path_to_fill_val_file }}
+verbose: {{ true_or_false }}

@@ -1,0 +1,4 @@
+data_dir: /data10/hcronk/geocarb/ditl_1/testing/process
+output_dir: /home/hcronk/geocarb/ditl_1/aggregation
+fill_val_file: fill_vals.yml
+verbose: True

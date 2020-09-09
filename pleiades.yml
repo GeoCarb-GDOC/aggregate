@@ -1,0 +1,4 @@
+data_dir: /nobackup/hcronk/data/process
+output_dir: /nobackup/hcronk/data/L2Ret_grans
+fill_val_file: fill_vals.yml
+verbose: False
