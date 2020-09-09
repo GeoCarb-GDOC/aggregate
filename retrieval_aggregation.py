@@ -11,10 +11,10 @@ import numpy as np
 import shutil
 import yaml
 
-data_dir = "/nobackup/hcronk/data"
-#data_dir = "/data10/hcronk/geocarb/ditl_1/testing"
-OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
-#OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
+#data_dir = "/nobackup/hcronk/data"
+data_dir = "/data10/hcronk/geocarb/ditl_1/testing"
+#OUTPUT_DIR = "/nobackup/hcronk/data/L2Ret_grans"
+OUTPUT_DIR = "/home/hcronk/geocarb/ditl_1/aggregation"
 #FILL_VAL_FILE = "/home/hcronk/geocarb/ditl_1/aggregation/fill_vals.yml"
 FILL_VAL_FILE = "fill_vals.yml"
 # the l2_fp code automatically adds a .generating tag to files as they are being written
@@ -204,6 +204,9 @@ def aggregate(l1b_file):
             else:
                 all_dat_dict[ret_ds][xidx] = open_ret_file[ret_ds][:]
 
+    #overwrite SID field with the full L1B SID field so that there are values for all soundings, not just selected ones
+    all_dat_dict["RetrievalHeader/sounding_id_reference"] = l1b_sid
+    
     for ds_name, dat in all_dat_dict.items():
         if verbose:
             print("Writing " + ds_name)
